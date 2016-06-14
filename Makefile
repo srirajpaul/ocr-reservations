@@ -11,8 +11,8 @@ default:
 	@echo ""
 	@echo "Valid targets are:"
 	@echo ""
-	@echo "   all -- clone OCR and copy the changes"
-	@echo "   deploy -- clone OCR and copy the changes"
+	@echo "   all -- clone OCR and copy the extension"
+	@echo "   deploy -- clone OCR and copy the extension"
 	@echo "   clean -- remove the OCR code base"
 	@echo ""
 

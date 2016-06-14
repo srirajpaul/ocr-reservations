@@ -11,19 +11,61 @@
 #ifdef ENABLE_EXTENSION_RESERVATION
 
 #include <assert.h>
+#include <string.h>
 
-#include "ocr-types.h"
+#include "ocr.h"
 #include "extensions/ocr-reservations.h"
+#include "utils/circular-queue.h"
 
 #pragma message "RESERVATION extension is experimental but should be supported on all platforms"
 
+#define U64_COUNT(given_type) ((sizeof(given_type)+7)/sizeof(u64))
+
+typedef enum {
+    RES_DEP_SLOT,
+    NUM_RES_SLOTS
+} ocrResSlots_t;
+
+ocrGuid_t ocr_realm_res_acq_func(u32 argc, u64 *argv, u32 depc, ocrEdtDep_t depv[])
+{
+    ocrCircularQueue_t *params = (ocrCircularQueue_t *)(depv[RES_DEP_SLOT].ptr);
+    ocrCircularQueueData_t *arr = (ocrCircularQueueData_t *) (params+1), data = {NULL_GUID};
+    ocrGuid_t evt_save, ret_evt = *((ocrGuid_t *)argv);
+
+    c_dequeue(arr, params, &data);
+    ocrAddDependence(data.elem, ret_evt, 0, DB_MODE_RO);
+    ocrEventCreate(&evt_save, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
+    ocrCircularQueueData_t data_save = {evt_save};
+    assert(c_enqueue(arr, params, data_save) == 0);
+    return NULL_GUID;
+}
+
+ocrGuid_t ocr_realm_res_rel_func(u32 argc, u64 *argv, u32 depc, ocrEdtDep_t depv[])
+{
+    ocrCircularQueue_t *params = (ocrCircularQueue_t *)(depv[RES_DEP_SLOT].ptr);
+    ocrCircularQueueData_t *arr = (ocrCircularQueueData_t *) (params+1), data = {NULL_GUID};
+
+    assert(c_dequeue(arr, params, &data) == 0);
+    ocrEventSatisfy(data.elem, NULL_GUID);
+    return NULL_GUID;
+}
 
 /**
  * @brief Create a Reservation
  **/
 u8 ocrReservationCreate(ocrGuid_t *res, void * params)
 {
-    assert(0);
+    assert(params == NULL); //for now
+    void *ptr;
+    u64 len = sizeof(ocrCircularQueue_t) + sizeof(ocrCircularQueueData_t)*RESERVATION_SIZE;
+    u8 ret = ocrDbCreate(res, (void **) &ptr, len, DB_PROP_NONE, NULL_HINT, NO_ALLOC);
+    if(ret == 0)
+    {
+        ocrCircularQueue_t * q_params = (ocrCircularQueue_t *) ptr;
+        q_params->front = q_params->rear = -1;
+        q_params->capacity = RESERVATION_SIZE;
+    }
+    return ret;
 }
 
 /**
@@ -31,7 +73,17 @@ u8 ocrReservationCreate(ocrGuid_t *res, void * params)
  **/
 u8 ocrReservationAcquire(ocrGuid_t res, ocrReservationMode_t mode, u32 depc, ocrGuid_t *depv, ocrGuid_t *outputEvent)
 {
-    assert(0);
+    ocrGuid_t edt_t, edt;
+    ocrEventCreate(outputEvent, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
+
+    ocrGuid_t res_depv[depc+1];
+    memcpy(&res_depv[NUM_RES_SLOTS], depv, depc*sizeof(ocrGuid_t));
+    res_depv[RES_DEP_SLOT] = UNINITIALIZED_GUID;
+    ocrEdtTemplateCreate(&edt_t, ocr_realm_res_acq_func, EDT_PARAM_UNK, EDT_PARAM_UNK);
+    int ret = ocrEdtCreate(&edt, edt_t, U64_COUNT(ocrGuid_t), (u64*)outputEvent, depc+1, res_depv, EDT_PROP_NONE, NULL_HINT, NULL);
+    ocrAddDependence(res, edt, RES_DEP_SLOT, DB_MODE_EW);
+    ocrEdtTemplateDestroy(edt_t);
+    return ret;
 }
 
 /**
@@ -41,7 +93,14 @@ u8 ocrReservationAcquire(ocrGuid_t res, ocrReservationMode_t mode, u32 depc, ocr
  **/
 u8 ocrReservationRelease(ocrGuid_t res, u32 depc, ocrGuid_t *depv, ocrGuid_t *outputEvent)
 {
-    assert(0);
+    ocrGuid_t edt_t, edt, res_depv[depc+1];
+    memcpy(&res_depv[NUM_RES_SLOTS], depv, depc*sizeof(ocrGuid_t));
+    res_depv[RES_DEP_SLOT] = UNINITIALIZED_GUID;
+    ocrEdtTemplateCreate(&edt_t, ocr_realm_res_rel_func, EDT_PARAM_UNK, EDT_PARAM_UNK);
+    int ret = ocrEdtCreate(&edt, edt_t, 0, NULL, depc+1, res_depv, EDT_PROP_NONE, NULL_HINT, outputEvent);
+    ocrAddDependence(res, edt, RES_DEP_SLOT, DB_MODE_EW);
+    ocrEdtTemplateDestroy(edt_t);
+    return ret;
 }
 
 /**
@@ -49,7 +108,7 @@ u8 ocrReservationRelease(ocrGuid_t res, u32 depc, ocrGuid_t *depv, ocrGuid_t *ou
  **/
 u8 ocrReservationDestroy(ocrGuid_t res)
 {
-    assert(0);
+    return ocrDbDestroy(res);
 }
 
 #endif /* ENABLE_EXTENSION_RESERVATION */
