@@ -6,19 +6,17 @@
 
 #include "ocr.h"
 
-#include <assert.h>
-
 #ifdef ENABLE_EXTENSION_RESERVATION
 #include "extensions/ocr-reservations.h"
 
 ocrGuid_t funcEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
-    assert(paramc == 1 && depc == 1);
+    ASSERT(paramc == 1 && depc == 1);
     PRINTF("%d\n",*paramv);
     return NULL_GUID;
 }
 
 ocrGuid_t shutEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
-    assert(paramc == 0 && depc == 1);
+    ASSERT(paramc == 0 && depc == 1);
     ocrShutdown();
     return NULL_GUID;
 }
@@ -34,6 +32,7 @@ ocrGuid_t mainEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
     ocrEdtTemplateCreate(&templGuid, funcEdt, 1, 1);
     
     ocrGuid_t depResEvt[size+1];
+    depResEvt[0] = NULL_GUID;
 
     for(i=0;i<size;i++)
     {

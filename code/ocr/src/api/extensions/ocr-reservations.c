@@ -10,10 +10,8 @@
 
 #ifdef ENABLE_EXTENSION_RESERVATION
 
-#include <assert.h>
-#include <string.h>
-
 #include "ocr.h"
+#include "ocr-hal.h"
 #include "extensions/ocr-reservations.h"
 #include "utils/circular-queue.h"
 
@@ -36,7 +34,7 @@ ocrGuid_t ocr_realm_res_acq_func(u32 argc, u64 *argv, u32 depc, ocrEdtDep_t depv
     ocrAddDependence(data.elem, ret_evt, 0, DB_MODE_RO);
     ocrEventCreate(&evt_save, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
     ocrCircularQueueData_t data_save = {evt_save};
-    assert(c_enqueue(arr, params, data_save) == 0);
+    ASSERT(c_enqueue(arr, params, data_save) == 0);
     return NULL_GUID;
 }
 
@@ -45,7 +43,7 @@ ocrGuid_t ocr_realm_res_rel_func(u32 argc, u64 *argv, u32 depc, ocrEdtDep_t depv
     ocrCircularQueue_t *params = (ocrCircularQueue_t *)(depv[RES_DEP_SLOT].ptr);
     ocrCircularQueueData_t *arr = (ocrCircularQueueData_t *) (params+1), data = {NULL_GUID};
 
-    assert(c_dequeue(arr, params, &data) == 0);
+    ASSERT(c_dequeue(arr, params, &data) == 0);
     ocrEventSatisfy(data.elem, NULL_GUID);
     return NULL_GUID;
 }
@@ -55,7 +53,7 @@ ocrGuid_t ocr_realm_res_rel_func(u32 argc, u64 *argv, u32 depc, ocrEdtDep_t depv
  **/
 u8 ocrReservationCreate(ocrGuid_t *res, void * params)
 {
-    assert(params == NULL); //for now
+    ASSERT(params == NULL); //for now
     void *ptr;
     u64 len = sizeof(ocrCircularQueue_t) + sizeof(ocrCircularQueueData_t)*RESERVATION_SIZE;
     u8 ret = ocrDbCreate(res, (void **) &ptr, len, DB_PROP_NONE, NULL_HINT, NO_ALLOC);
@@ -77,7 +75,7 @@ u8 ocrReservationAcquire(ocrGuid_t res, ocrReservationMode_t mode, u32 depc, ocr
     ocrEventCreate(outputEvent, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
 
     ocrGuid_t res_depv[depc+1];
-    memcpy(&res_depv[NUM_RES_SLOTS], depv, depc*sizeof(ocrGuid_t));
+    hal_memCopy(&res_depv[NUM_RES_SLOTS], depv, depc*sizeof(ocrGuid_t), 0);
     res_depv[RES_DEP_SLOT] = UNINITIALIZED_GUID;
     ocrEdtTemplateCreate(&edt_t, ocr_realm_res_acq_func, EDT_PARAM_UNK, EDT_PARAM_UNK);
     int ret = ocrEdtCreate(&edt, edt_t, U64_COUNT(ocrGuid_t), (u64*)outputEvent, depc+1, res_depv, EDT_PROP_NONE, NULL_HINT, NULL);
@@ -94,7 +92,7 @@ u8 ocrReservationAcquire(ocrGuid_t res, ocrReservationMode_t mode, u32 depc, ocr
 u8 ocrReservationRelease(ocrGuid_t res, u32 depc, ocrGuid_t *depv, ocrGuid_t *outputEvent)
 {
     ocrGuid_t edt_t, edt, res_depv[depc+1];
-    memcpy(&res_depv[NUM_RES_SLOTS], depv, depc*sizeof(ocrGuid_t));
+    hal_memCopy(&res_depv[NUM_RES_SLOTS], depv, depc*sizeof(ocrGuid_t), 0);
     res_depv[RES_DEP_SLOT] = UNINITIALIZED_GUID;
     ocrEdtTemplateCreate(&edt_t, ocr_realm_res_rel_func, EDT_PARAM_UNK, EDT_PARAM_UNK);
     int ret = ocrEdtCreate(&edt, edt_t, 0, NULL, depc+1, res_depv, EDT_PROP_NONE, NULL_HINT, outputEvent);
