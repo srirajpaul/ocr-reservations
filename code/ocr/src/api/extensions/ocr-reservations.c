@@ -30,7 +30,8 @@ ocrGuid_t ocr_realm_res_acq_func(u32 argc, u64 *argv, u32 depc, ocrEdtDep_t depv
     ocrCircularQueueData_t *arr = (ocrCircularQueueData_t *) (params+1), data = {NULL_GUID};
     ocrGuid_t evt_save, ret_evt = *((ocrGuid_t *)argv);
 
-    c_dequeue(arr, params, &data);
+    if(params->front != -1)
+      data = arr[params->rear];
     ocrAddDependence(data.elem, ret_evt, 0, DB_MODE_RO);
     ocrEventCreate(&evt_save, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
     ocrCircularQueueData_t data_save = {evt_save};

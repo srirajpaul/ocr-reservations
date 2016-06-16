@@ -9,46 +9,56 @@
 #ifdef ENABLE_EXTENSION_RESERVATION
 #include "extensions/ocr-reservations.h"
 
+#define SIZE 10
+
+u64 count = 0;
+
 ocrGuid_t funcEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
     ASSERT(paramc == 1 && depc == 1);
-    PRINTF("%d\n",*paramv);
+    int i;
+    u64 temp = count;
+    for(i=0;i<100000;i++);
+    PRINTF("%d %d\n",*paramv, temp);
+    count = temp + 1;
     return NULL_GUID;
 }
 
 ocrGuid_t shutEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
-    ASSERT(paramc == 0 && depc == 1);
+    ASSERT(paramc == 0);
+    PRINTF("SHUTDOWN\n");
     ocrShutdown();
     return NULL_GUID;
 }
 
 ocrGuid_t mainEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
 
-    u64 param_val=0, size=10, i;
+    u64 param_val=0, i;
 
-    ocrGuid_t resGuid = NULL_GUID, outResEvt1, outResEvt2;
+    ocrGuid_t resGuid = NULL_GUID;
     ocrReservationCreate(&resGuid, NULL);
 
     ocrGuid_t templGuid;
     ocrEdtTemplateCreate(&templGuid, funcEdt, 1, 1);
     
-    ocrGuid_t depResEvt[size+1];
-    depResEvt[0] = NULL_GUID;
+    ocrGuid_t depShutEvt[SIZE] = {UNINITIALIZED_GUID};
 
-    for(i=0;i<size;i++)
+    for(i=0;i<SIZE;i++)
     {
-      ocrGuid_t outResEvt;
-      ocrReservationAcquire(resGuid, OCR_RES_EXCL_T, 1, &depResEvt[i], &outResEvt);
-      ocrGuid_t edtGuid, outEdtGuid; 
+      ocrGuid_t outResEvt, depRes;
+      ocrEventCreate(&depRes, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
+      ocrReservationAcquire(resGuid, OCR_RES_EXCL_T, 1, &depRes, &outResEvt);
+      ocrGuid_t edtGuid, outEdtGuid;
       ocrEdtCreate(&edtGuid, templGuid, 1, &param_val, 1, &outResEvt, EDT_PROP_NONE, NULL_HINT, &outEdtGuid);
       param_val++;
-      ocrReservationRelease(resGuid, 1, &outEdtGuid, &depResEvt[i+1]);
+      ocrReservationRelease(resGuid, 1, &outEdtGuid, &depShutEvt[i]);
+      ocrEventSatisfy(depRes, NULL_GUID);
     }
 
     ocrGuid_t templShutGuid;
-    ocrEdtTemplateCreate(&templShutGuid, shutEdt, 0, 1);
+    ocrEdtTemplateCreate(&templShutGuid, shutEdt, 0, SIZE);
 
     ocrGuid_t edtShutGuid;
-    ocrEdtCreate(&edtShutGuid, templShutGuid, 0, NULL, 1, &depResEvt[size], EDT_PROP_NONE, NULL_HINT, NULL);
+    ocrEdtCreate(&edtShutGuid, templShutGuid, 0, NULL, SIZE, &depShutEvt[0], EDT_PROP_NONE, NULL_HINT, NULL);
 
     return NULL_GUID;
 }
