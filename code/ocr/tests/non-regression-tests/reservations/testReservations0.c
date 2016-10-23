@@ -41,17 +41,17 @@ ocrGuid_t mainEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
     ocrEdtTemplateCreate(&templGuid, funcEdt, 1, 1);
     
     ocrGuid_t depShutEvt[SIZE] = {UNINITIALIZED_GUID};
+    ocrGuid_t depRes[SIZE] = {UNINITIALIZED_GUID};
 
     for(i=0;i<SIZE;i++)
     {
-      ocrGuid_t outResEvt, depRes;
-      ocrEventCreate(&depRes, OCR_EVENT_ONCE_T, EVT_PROP_NONE);
-      ocrReservationAcquire(resGuid, OCR_RES_EXCL_T, 1, &depRes, &outResEvt);
+      ocrGuid_t outResEvt;
+      ocrEventCreate(&depRes[i], OCR_EVENT_ONCE_T, EVT_PROP_NONE);
+      ocrReservationAcquire(resGuid, OCR_RES_EXCL_T, 1, &depRes[i], &outResEvt);
       ocrGuid_t edtGuid, outEdtGuid;
-      ocrEdtCreate(&edtGuid, templGuid, 1, &param_val, 1, &outResEvt, EDT_PROP_NONE, NULL_HINT, &outEdtGuid);
+      ocrEdtCreate(&edtGuid, templGuid, 1, &param_val, 1, &outResEvt, EDT_PROP_NONE, NULL_HINT, &depShutEvt[i]);
       param_val++;
-      ocrReservationRelease(resGuid, 1, &outEdtGuid, &depShutEvt[i]);
-      ocrEventSatisfy(depRes, NULL_GUID);
+      ocrReservationRelease(resGuid, 1, &depShutEvt[i]);
     }
 
     ocrGuid_t templShutGuid;
@@ -59,6 +59,11 @@ ocrGuid_t mainEdt(u32 paramc, u64* paramv, u32 depc, ocrEdtDep_t depv[]) {
 
     ocrGuid_t edtShutGuid;
     ocrEdtCreate(&edtShutGuid, templShutGuid, 0, NULL, SIZE, &depShutEvt[0], EDT_PROP_NONE, NULL_HINT, NULL);
+
+    for(i=0;i<SIZE;i++)
+    {
+      ocrEventSatisfy(depRes[i], NULL_GUID);
+    }
 
     return NULL_GUID;
 }

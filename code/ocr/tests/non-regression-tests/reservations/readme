@@ -1,0 +1,2 @@
+gcc -I ../../../inc/ -I ../../../src/inc/ -I /home/srp7/ocr/xstg/ocr/ocr/install/include/ -L $OCR_INSTALL/lib -locr_x86 -DENABLE_RES_TESTING -DENABLE_EXTENSION_RESERVATION ../../../src/utils/circular-queue.c ../../../src/api/extensions/ocr-reservations.c testReservations0.c
+

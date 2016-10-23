@@ -35,7 +35,7 @@ extern "C" {
  * @brief Number of simultaneous acquires supported
  **/ 
 #ifndef RESERVATION_SIZE
-#define RESERVATION_SIZE 10
+#define RESERVATION_SIZE 100
 #endif 
 
 /**
@@ -113,13 +113,12 @@ u8 ocrReservationAcquire(ocrGuid_t res, ocrReservationMode_t mode, u32 depc, ocr
  *                              of size 'depc'. If only some dependences are known, you can
  *                              specify the known ones in the array and use UNINITIALIZED_GUID
  *                              for the unknown ones
- * @param[out] outputEvent      is the event that gets triggered when the reservation is released
  *
  * @return a status code
  *     - 0: successful
  *     - !0: error in creating reservation
  **/
-u8 ocrReservationRelease(ocrGuid_t res, u32 depc, ocrGuid_t *depv, ocrGuid_t *outputEvent);
+u8 ocrReservationRelease(ocrGuid_t res, u32 depc, ocrGuid_t *depv);
 
 /**
  * @brief Destroys a reservation
